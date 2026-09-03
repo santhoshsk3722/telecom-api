@@ -1,15 +1,17 @@
 pipeline {
+
     agent any
 
     environment {
-        IMAGE_NAME = 'telecom-api'
         REGISTRY = 'host.docker.internal:5200'
+        IMAGE_NAME = 'telecom-api'
     }
 
     stages {
+
         stage('Verify Tools') {
             steps {
-                sh """
+                sh '''
                     echo "===== Java ====="
                     java -version
 
@@ -21,71 +23,73 @@ pipeline {
 
                     echo "===== Registry Connectivity ====="
                     curl -s http://${REGISTRY}/v2/_catalog
-                """
+                '''
             }
         }
 
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
-                sh """
-                    echo "===== Maven Build ====="
-
-                    if command -v mvn >/dev/null 2>&1; then
-                        mvn clean package -DskipTests
-                    else
-                        echo "Maven not found on Jenkins agent."
-                        echo "Using Maven Docker image for build."
-                        
-                        docker run --rm -v "${WORKSPACE}:/workspace" -w /workspace maven:3.9-eclipse-temurin-17 mvn clean package -DskipTests
-                    fi
-                """
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                sh """
+                sh '''
                     echo "===== Building Docker Image ====="
 
-                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                    docker build \
+                        -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        -t ${IMAGE_NAME}:latest \
+                        .
 
-                    echo "===== Docker Image Created ====="
+                    echo "===== Docker Images ====="
                     docker images ${IMAGE_NAME}
-                """
+                '''
             }
         }
 
-        stage('Docker Tag') {
+        stage('Tag Docker Image') {
             steps {
-                sh """
+                sh '''
                     echo "===== Tagging Docker Image ====="
 
-                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
-                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY}/${IMAGE_NAME}:latest
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        ${REGISTRY}/${IMAGE_NAME}:latest
 
                     echo "===== Tagged Images ====="
+
                     docker images ${REGISTRY}/${IMAGE_NAME}
-                """
+                '''
             }
         }
 
-        stage('Docker Push') {
+        stage('Push Docker Image') {
             steps {
-                sh """
-                    echo "===== Pushing Versioned Image ====="
+                sh '''
+                    echo "===== Pushing Docker Image ====="
+
                     docker push ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
 
-                    echo "===== Pushing Latest Image ====="
                     docker push ${REGISTRY}/${IMAGE_NAME}:latest
 
+                    echo "===== Docker Push Completed ====="
+                '''
+            }
+        }
+
+        stage('Verify Registry') {
+            steps {
+                sh '''
                     echo "===== Registry Contents ====="
+
                     curl -s http://${REGISTRY}/v2/_catalog
 
                     echo ""
+
                     echo "===== Image Tags ====="
+
                     curl -s http://${REGISTRY}/v2/${IMAGE_NAME}/tags/list
+
                     echo ""
-                """
+                '''
             }
         }
     }
@@ -94,6 +98,7 @@ pipeline {
         success {
             echo 'Telecom API CI/CD pipeline completed successfully.'
         }
+
         failure {
             echo 'Telecom API CI/CD pipeline failed.'
         }
