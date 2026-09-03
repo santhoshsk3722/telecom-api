@@ -1,32 +1,33 @@
 pipeline {
-
     agent any
 
     stages {
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/santhoshsk3722/telecom-api.git'
+                echo 'Checking out source code...'
+                checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                sh 'chmod +x mvnw || true'
-                sh './mvnw clean compile -DskipTests'
+                echo 'Building Telecom API...'
+                sh 'mvn clean compile -DskipTests'
             }
         }
 
         stage('Test') {
             steps {
-                sh './mvnw test'
+                echo 'Running tests...'
+                sh 'mvn test'
             }
         }
 
         stage('Package') {
             steps {
-                sh './mvnw clean package -DskipTests'
+                echo 'Creating JAR package...'
+                sh 'mvn clean package -DskipTests'
             }
         }
     }
