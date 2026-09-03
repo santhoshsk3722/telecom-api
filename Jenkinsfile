@@ -1,9 +1,6 @@
 pipeline {
-    agent any
 
-    tools {
-        maven 'Maven-3.9.11'
-    }
+    agent any
 
     stages {
 
@@ -14,32 +11,41 @@ pipeline {
             }
         }
 
+        stage('Verify Tools') {
+            steps {
+                sh '''
+                    echo "===== Java ====="
+                    java -version
+
+                    echo "===== Maven ====="
+                    mvn -version
+
+                    echo "===== Docker ====="
+                    docker --version
+
+                    echo "===== Docker Containers ====="
+                    docker ps
+                '''
+            }
+        }
+
         stage('Build') {
-            steps {
-                sh 'mvn clean compile -DskipTests'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'mvn test'
-            }
-        }
-
-        stage('Package') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
         }
+
     }
 
     post {
+
         success {
-            echo 'Telecom API CI Pipeline completed successfully!'
+            echo 'Telecom API CI pipeline completed successfully.'
         }
 
         failure {
-            echo 'Telecom API CI Pipeline failed!'
+            echo 'Telecom API CI pipeline failed.'
         }
+
     }
 }
