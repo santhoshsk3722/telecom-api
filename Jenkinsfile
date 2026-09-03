@@ -1,32 +1,33 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven-3.9.11'
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/santhoshsk3722/telecom-api.git'
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building Telecom API...'
                 sh 'mvn clean compile -DskipTests'
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Running tests...'
                 sh 'mvn test'
             }
         }
 
         stage('Package') {
             steps {
-                echo 'Creating JAR package...'
                 sh 'mvn clean package -DskipTests'
             }
         }
