@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'telecom-api-registry:5000'
+        REGISTRY = 'host.docker.internal:5200'
         IMAGE_NAME = 'telecom-api'
     }
 
@@ -81,27 +81,30 @@ pipeline {
         stage('Docker Push') {
             steps {
                 sh '''
-                    echo "===== Pushing Docker Images ====="
+                    echo "===== Pushing Docker Image ====="
 
-                    docker push ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push \
+                        ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
 
-                    docker push ${REGISTRY}/${IMAGE_NAME}:latest
+                    docker push \
+                        ${REGISTRY}/${IMAGE_NAME}:latest
 
-                    echo "===== Push Completed ====="
+                    echo "===== Docker Push Completed ====="
                 '''
             }
         }
-
     }
 
     post {
 
         success {
-            echo 'Telecom API CI/CD image build and registry push completed successfully.'
+            echo "Telecom API CI/CD pipeline completed successfully."
+            echo "Image: ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}"
+            echo "Latest: ${REGISTRY}/${IMAGE_NAME}:latest"
         }
 
         failure {
-            echo 'Telecom API CI/CD pipeline failed.'
+            echo "Telecom API CI/CD pipeline failed."
         }
     }
 }
