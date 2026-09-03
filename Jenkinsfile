@@ -35,6 +35,16 @@ pipeline {
             }
         }
 
+        stage('Docker Build') {
+            steps {
+                sh '''
+                    echo "===== Building Docker Image ====="
+                    docker build -t telecom-api:${BUILD_NUMBER} .
+                    docker images telecom-api
+                '''
+            }
+        }
+
     }
 
     post {
