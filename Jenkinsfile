@@ -1,10 +1,12 @@
+```groovy
 pipeline {
 
     agent any
 
     environment {
-        REGISTRY = 'host.docker.internal:5200'
-        IMAGE_NAME = 'telecom-api'
+        APP_NAME = "telecom-api"
+        REGISTRY = "host.docker.internal:5200"
+        IMAGE = "${REGISTRY}/${APP_NAME}"
     }
 
     stages {
@@ -22,23 +24,35 @@ pipeline {
                     echo "===== Java ====="
                     java -version
 
-                    echo "===== Maven ====="
-                    mvn -version
-
                     echo "===== Docker ====="
                     docker --version
 
                     echo "===== Docker Containers ====="
                     docker ps
+
+                    echo "===== Registry ====="
+                    curl -s http://${REGISTRY}/v2/_catalog
                 '''
             }
         }
 
         stage('Build') {
+            agent {
+                docker {
+                    image 'maven:3.9-eclipse-temurin-17'
+                    reuseNode true
+                }
+            }
+
             steps {
                 sh '''
                     echo "===== Maven Build ====="
                     mvn clean package -DskipTests
+
+                    echo "===== Build Artifact ====="
+                    ls -lh target/
+
+                    test -f target/telecom-api-0.0.1-SNAPSHOT.jar
                 '''
             }
         }
@@ -49,11 +63,12 @@ pipeline {
                     echo "===== Building Docker Image ====="
 
                     docker build \
-                        -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                        -t ${APP_NAME}:${BUILD_NUMBER} \
+                        .
 
                     echo "===== Docker Images ====="
 
-                    docker images ${IMAGE_NAME}
+                    docker images ${APP_NAME}
                 '''
             }
         }
@@ -64,16 +79,16 @@ pipeline {
                     echo "===== Tagging Docker Image ====="
 
                     docker tag \
-                        ${IMAGE_NAME}:${BUILD_NUMBER} \
-                        ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                        ${APP_NAME}:${BUILD_NUMBER} \
+                        ${IMAGE}:${BUILD_NUMBER}
 
                     docker tag \
-                        ${IMAGE_NAME}:${BUILD_NUMBER} \
-                        ${REGISTRY}/${IMAGE_NAME}:latest
+                        ${APP_NAME}:${BUILD_NUMBER} \
+                        ${IMAGE}:latest
 
                     echo "===== Tagged Images ====="
 
-                    docker images ${REGISTRY}/${IMAGE_NAME}
+                    docker images ${IMAGE}
                 '''
             }
         }
@@ -83,13 +98,21 @@ pipeline {
                 sh '''
                     echo "===== Pushing Docker Image ====="
 
-                    docker push \
-                        ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${IMAGE}:${BUILD_NUMBER}
 
-                    docker push \
-                        ${REGISTRY}/${IMAGE_NAME}:latest
+                    docker push ${IMAGE}:latest
 
-                    echo "===== Docker Push Completed ====="
+                    echo "===== Registry Contents ====="
+
+                    curl -s http://${REGISTRY}/v2/_catalog
+
+                    echo ""
+
+                    echo "===== Image Tags ====="
+
+                    curl -s http://${REGISTRY}/v2/${APP_NAME}/tags/list
+
+                    echo ""
                 '''
             }
         }
@@ -98,13 +121,27 @@ pipeline {
     post {
 
         success {
-            echo "Telecom API CI/CD pipeline completed successfully."
-            echo "Image: ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}"
-            echo "Latest: ${REGISTRY}/${IMAGE_NAME}:latest"
+            echo """
+            ==========================================
+            Telecom API CI/CD Pipeline SUCCESS
+            ==========================================
+            Build Number : ${BUILD_NUMBER}
+            Image        : ${IMAGE}:${BUILD_NUMBER}
+            Latest       : ${IMAGE}:latest
+            Registry     : ${REGISTRY}
+            ==========================================
+            """
         }
 
         failure {
-            echo "Telecom API CI/CD pipeline failed."
+            echo """
+            ==========================================
+            Telecom API CI/CD Pipeline FAILED
+            ==========================================
+            Build Number : ${BUILD_NUMBER}
+            ==========================================
+            """
         }
     }
 }
+```
