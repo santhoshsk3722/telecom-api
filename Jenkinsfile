@@ -2,6 +2,11 @@ pipeline {
 
     agent any
 
+    environment {
+        REGISTRY = 'telecom-api-registry:5000'
+        IMAGE_NAME = 'telecom-api'
+    }
+
     stages {
 
         stage('Checkout') {
@@ -31,7 +36,10 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh '''
+                    echo "===== Maven Build ====="
+                    mvn clean package -DskipTests
+                '''
             }
         }
 
@@ -39,8 +47,47 @@ pipeline {
             steps {
                 sh '''
                     echo "===== Building Docker Image ====="
-                    docker build -t telecom-api:${BUILD_NUMBER} .
-                    docker images telecom-api
+
+                    docker build \
+                        -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+
+                    echo "===== Docker Images ====="
+
+                    docker images ${IMAGE_NAME}
+                '''
+            }
+        }
+
+        stage('Docker Tag') {
+            steps {
+                sh '''
+                    echo "===== Tagging Docker Image ====="
+
+                    docker tag \
+                        ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    docker tag \
+                        ${IMAGE_NAME}:${BUILD_NUMBER} \
+                        ${REGISTRY}/${IMAGE_NAME}:latest
+
+                    echo "===== Tagged Images ====="
+
+                    docker images ${REGISTRY}/${IMAGE_NAME}
+                '''
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                sh '''
+                    echo "===== Pushing Docker Images ====="
+
+                    docker push ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    docker push ${REGISTRY}/${IMAGE_NAME}:latest
+
+                    echo "===== Push Completed ====="
                 '''
             }
         }
@@ -50,12 +97,11 @@ pipeline {
     post {
 
         success {
-            echo 'Telecom API CI pipeline completed successfully.'
+            echo 'Telecom API CI/CD image build and registry push completed successfully.'
         }
 
         failure {
-            echo 'Telecom API CI pipeline failed.'
+            echo 'Telecom API CI/CD pipeline failed.'
         }
-
     }
 }
